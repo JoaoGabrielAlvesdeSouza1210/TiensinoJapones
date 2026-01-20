@@ -80,7 +80,7 @@ export function useFlashcards() {
   const dueCards = computed(() => {
     const now = Date.now()
     return deck
-      .map(d => ({ ...d, state: stateMap.value[d.id] }))
+      .map(d => ({ ...d, state: stateMap.value[d.id] || { due: 0 } }))
       .filter(d => d.state.due <= now)
       .sort((a, b) => (a.state.due - b.state.due))
   })
