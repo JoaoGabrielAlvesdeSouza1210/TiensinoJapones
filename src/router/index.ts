@@ -16,6 +16,17 @@ const router = createRouter({
               { name: 'Home', path: '/' }
             ]
           }
+        },
+        {
+          path: 'jlpt-n5',
+          name: 'JLPTN5',
+          component: () => import('@/views/JLPTN5.vue'),
+          meta: {
+            breadcrumb: [
+              { name: 'Home', path: '/' },
+              { name: 'JLPT N5', path: '/jlpt-n5' }
+            ]
+          }
         }
         ,
         {
@@ -28,6 +39,17 @@ const router = createRouter({
               { name: 'Flashcards', path: '/flashcards-n5' }
             ] 
         }
+        },
+        {
+          path: 'vocabulario-n5',
+          name: 'Vocabulário N5',
+          component: () => import('@/views/VocabularyN5.vue'),
+          meta: {
+            breadcrumb: [
+              { name: 'Home', path: '/' },
+              { name: 'Vocabulário N5', path: '/vocabulario-n5' }
+            ]
+          }
         }
       ]
     },
