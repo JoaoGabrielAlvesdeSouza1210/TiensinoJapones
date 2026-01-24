@@ -161,27 +161,130 @@
       </div>
     </div>
 
-    <!-- Modal de Detalhes (futura implementação) -->
+    <!-- Modal de Detalhes ATUALIZADO -->
     <dialog ref="detailsModal" class="modal">
-      <div class="modal-box max-w-2xl">
+      <div class="modal-box max-w-3xl">
         <form method="dialog">
           <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
         </form>
-        <h3 class="font-bold text-3xl mb-6 text-center">{{ selectedKanji?.kanji }}</h3>
-        <div class="space-y-4">
-          <div>
-            <p class="font-semibold text-lg mb-2">Significado em Português:</p>
-            <p class="text-base-content/80">{{ selectedKanji?.meaning_pt }}</p>
+        
+        <!-- Loading State -->
+        <div v-if="loadingDetails" class="flex justify-center items-center py-12">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="errorDetails" class="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{{ errorDetails }}</span>
+        </div>
+
+        <!-- Detalhes do Kanji -->
+        <div v-else-if="kanjiApiDetails" class="space-y-6">
+          <!-- Kanji Principal -->
+          <div class="text-center">
+            <h3 class="text-8xl font-bold mb-4">{{ selectedKanji?.kanji }}</h3>
+            <div class="badge badge-primary badge-lg">JLPT N{{ kanjiApiDetails.jlpt || 5 }}</div>
           </div>
+
           <div class="divider"></div>
-          <div>
-            <p class="font-semibold text-lg mb-2">Leitura (Romaji):</p>
-            <p class="text-base-content/80 font-mono text-xl">{{ selectedKanji?.romaji }}</p>
+
+          <!-- Grid de Informações -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Significados -->
+            <div class="card bg-base-200">
+              <div class="card-body">
+                <h4 class="card-title text-sm">🇧🇷 Significados (google tradutor)</h4>
+                <ul class="list-disc list-inside space-y-1">
+                  <li v-for="(meaning, idx) in kanjiApiDetails.br_meanings" :key="idx">
+                    {{ meaning }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card bg-base-200">
+              <div class="card-body">
+                <h4 class="card-title text-sm">🇺🇸 Significados (original)</h4>
+                <ul class="list-disc list-inside space-y-1">
+                  <li v-for="(meaning, idx) in kanjiApiDetails.meanings" :key="idx">
+                    {{ meaning }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Informações Básicas -->
+            <div class="card bg-base-200">
+              <div class="card-body">
+                <h4 class="card-title text-sm">📊 Informações</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="font-semibold">Traços:</span>
+                    <span>{{ kanjiApiDetails.stroke_count }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="font-semibold">Grau:</span>
+                    <span>{{ kanjiApiDetails.grade }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="font-semibold">JLPT:</span>
+                    <span class="font-mono text-xs">{{ kanjiApiDetails.jlpt }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Leituras Kun -->
+            <div class="card bg-base-200">
+              <div class="card-body">
+                <h4 class="card-title text-sm">🔤 Leituras Kun (訓読み)</h4>
+                <div v-if="kanjiApiDetails.kun_readings.length > 0">
+                  <div v-for="(reading, idx) in kanjiApiDetails.kun_readings" :key="idx" class="badge badge-outline mr-2 mb-2">
+                    {{ reading }}
+                  </div>
+                </div>
+                <div v-else class="text-sm opacity-60">Não disponível</div>
+              </div>
+            </div>
+
+            <!-- Leituras On -->
+            <div class="card bg-base-200">
+              <div class="card-body">
+                <h4 class="card-title text-sm">📖 Leituras On (音読み)</h4>
+                <div v-if="kanjiApiDetails.on_readings.length > 0">
+                  <div v-for="(reading, idx) in kanjiApiDetails.on_readings" :key="idx" class="badge badge-outline mr-2 mb-2">
+                    {{ reading }}
+                  </div>
+                </div>
+                <div v-else class="text-sm opacity-60">Não disponível</div>
+              </div>
+            </div>
           </div>
-          <div class="divider"></div>
+
+          <!-- Leituras de Nomes -->
+          <div v-if="kanjiApiDetails.name_readings.length > 0" class="card bg-base-200">
+            <div class="card-body">
+              <h4 class="card-title text-sm">👤 Leituras em Nomes</h4>
+              <div class="flex flex-wrap gap-2">
+                <div v-for="(reading, idx) in kanjiApiDetails.name_readings" :key="idx" class="badge badge-info">
+                  {{ reading }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Informação do Romaji Original -->
           <div class="alert alert-info">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <span>Exemplos de uso e exercícios em breve!</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+              <div class="font-bold">Leitura do Curso</div>
+              <div>{{ selectedKanji?.romaji }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -195,6 +298,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { KANJI_N5, type KanjiCard } from '@/data/kanji-n5'
+import { useKanjiApi } from '@/composables/useKanjiApi'
 
 // Estados
 const searchQuery = ref('')
@@ -254,9 +358,24 @@ const isLearned = (id: string) => {
   return learnedKanjis.value.has(id)
 }
 
-const viewDetails = (kanji: KanjiCard) => {
+// Composable da API
+const { 
+  loading: loadingDetails, 
+  error: errorDetails, 
+  kanjiDetails: kanjiApiDetails, 
+  fetchKanjiDetails 
+} = useKanjiApi()
+
+/**
+ * Visualiza detalhes do kanji buscando informações da API
+ * @param kanji - Card do kanji selecionado
+ */
+const viewDetails = async (kanji: KanjiCard): Promise<void> => {
   selectedKanji.value = kanji
   detailsModal.value?.showModal()
+  
+  // Busca informações da API
+  await fetchKanjiDetails(kanji.kanji)
 }
 </script>
 

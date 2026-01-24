@@ -121,7 +121,7 @@ const menus = [
     link: '/',
   },
   {
-    title: 'JLPT',
+    title: 'Lista de Kanjis',
     icon: '📚',
     submenus: [
       { title: 'Kanjis N5', icon: '📖', link: '/jlpt-n5' },
@@ -139,6 +139,17 @@ const menus = [
     icon: 'あ',
     submenus: [
       { title: 'Vocabulário N5', icon: '📝', link: '/vocabulario-n5' }
+    ]
+  },
+  {
+    title: 'Buscar Kanjis',
+    icon: '🔍',
+    submenus: [
+      { title: 'Kanjis por grade', icon: '📝', link: '/grades' },
+      { title: 'Kanjis por leitura', icon: '📝', link: '/romaji-ou-kana' },
+      { title: 'Kanjis de Nomes', icon: '📝', link: '/kanjis-de-nomes' },
+      { title: 'Kanjis Essenciais', icon: '📝', link: '/kanjis-essenciais' },
+      { title: 'Palavras com Kanji', icon: '📝', link: '/palavras-com-kanji' }
     ]
   }
 ]

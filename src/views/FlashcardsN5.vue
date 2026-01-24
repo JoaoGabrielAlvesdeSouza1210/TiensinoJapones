@@ -160,11 +160,11 @@
 
         <!-- Controles de Resposta -->
         <div class="text-center space-y-6">
-          <!-- Botão Mostrar Resposta -->
+          <!-- Botão Mostrar Resposta ATUALIZADO -->
           <div v-if="!revealed" class="animate-bounce">
             <button 
               class="btn btn-primary btn-lg gap-2 shadow-lg hover:shadow-xl transition-shadow"
-              @click="revealed = true"
+              @click="revealWithApiData"
             >
               👁️ Mostrar Resposta
             </button>
@@ -173,8 +173,84 @@
             </p>
           </div>
 
+          <!-- Informações Adicionais da API -->
+          <div v-if="revealed && kanjiApiDetails" class="animate-fade-in">
+            <div class="collapse collapse-arrow bg-gradient-to-br from-primary/5 to-secondary/5">
+              <input type="checkbox" checked /> 
+              <div class="collapse-title font-medium flex items-center gap-2">
+                <span>📚</span>
+                <span>Informações Detalhadas do Kanji</span>
+              </div>
+              <div class="collapse-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <!-- Significados Completos -->
+                  <div class="card bg-base-100">
+                    <div class="card-body p-4">
+                      <h5 class="font-semibold mb-2">🌐 Significados em Inglês</h5>
+                      <ul class="list-disc list-inside text-sm space-y-1">
+                        <li v-for="(meaning, idx) in kanjiApiDetails.meanings" :key="idx">
+                          {{ meaning }}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <!-- Leituras -->
+                  <div class="card bg-base-100">
+                    <div class="card-body p-4">
+                      <h5 class="font-semibold mb-2">📖 Leituras</h5>
+                      <div class="space-y-2 text-sm">
+                        <div>
+                          <span class="font-semibold">Kun:</span>
+                          <span class="ml-2">{{ formatKunReadings(kanjiApiDetails.kun_readings) }}</span>
+                        </div>
+                        <div>
+                          <span class="font-semibold">On:</span>
+                          <span class="ml-2">{{ formatOnReadings(kanjiApiDetails.on_readings) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Informações Técnicas -->
+                  <div class="card bg-base-100">
+                    <div class="card-body p-4">
+                      <h5 class="font-semibold mb-2">⚙️ Dados Técnicos</h5>
+                      <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                          <span>Traços:</span>
+                          <span class="font-mono">{{ kanjiApiDetails.stroke_count }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span>Grau:</span>
+                          <span class="font-mono">{{ kanjiApiDetails.grade }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span>JLPT:</span>
+                          <span class="font-mono">N{{ kanjiApiDetails.jlpt || 5 }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Leituras de Nomes -->
+                  <div v-if="kanjiApiDetails.name_readings.length > 0" class="card bg-base-100">
+                    <div class="card-body p-4">
+                      <h5 class="font-semibold mb-2">👤 Em Nomes</h5>
+                      <div class="flex flex-wrap gap-1">
+                        <div v-for="(reading, idx) in kanjiApiDetails.name_readings" :key="idx" class="badge badge-sm badge-outline">
+                          {{ reading }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Botões de Avaliação -->
-          <div v-else class="space-y-6 animate-fade-in">
+          <div class="space-y-6 animate-fade-in">
             <div class="alert alert-info">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               <span>Como foi sua lembrança?</span>
@@ -269,13 +345,23 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useFlashcards } from '@/composables/useFlashcards'
+import { useKanjiApi } from '@/composables/useKanjiApi'
 
 const { dueCards, sampleNext, review, resetAll } = useFlashcards()
+
+// Composable da API
+const { 
+  kanjiDetails: kanjiApiDetails, 
+  fetchKanjiDetails,
+  formatKunReadings,
+  formatOnReadings
+} = useKanjiApi()
 
 const queue = ref(dueCards.value.slice())
 const current = ref(queue.value[0] ?? sampleNext())
 const revealed = ref(false)
 const totalInSession = ref(queue.value.length || 1)
+const showApiDetails = ref(false)
 
 // Computed properties
 const completedInSession = computed(() => totalInSession.value - queue.value.length)
@@ -379,6 +465,16 @@ function repetition(id: string) {
     return map[id]?.repetition ?? 0
   } catch {
     return 0
+  }
+}
+
+/**
+ * Mostra informações adicionais da API quando revelar
+ */
+const revealWithApiData = async (): Promise<void> => {
+  revealed.value = true
+  if (current.value) {
+    await fetchKanjiDetails(current.value.kanji)
   }
 }
 

@@ -89,16 +89,17 @@
         </div>
       </div>
 
-      <!-- Grid de Vocabulário -->
+      <!-- Grid de Vocabulário ATUALIZADO -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
         <div 
           v-for="item in displayedVocabulary" 
           :key="item.id"
-          class="card bg-gradient-to-br from-base-100 to-base-200 shadow-lg border-2 hover:shadow-2xl transition-all duration-300 hover:scale-105"
+          class="card bg-gradient-to-br from-base-100 to-base-200 shadow-lg border-2 hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer"
           :class="[
             item.type === 'noun' ? 'border-info/30 hover:border-info' : 'border-error/30 hover:border-error',
             learned.has(item.id) ? 'ring-2 ring-success' : ''
           ]"
+          @click="showWordDetails(item)"
         >
           <div class="card-body">
             <!-- Badge de tipo -->
@@ -187,12 +188,110 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Detalhes da Palavra -->
+    <dialog ref="wordDetailsModal" class="modal">
+      <div class="modal-box max-w-3xl">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        </form>
+        
+        <div v-if="selectedWord" class="space-y-6">
+          <!-- Palavra Principal -->
+          <div class="text-center">
+            <div class="text-7xl font-bold mb-2">{{ selectedWord.word }}</div>
+            <div class="text-2xl text-base-content/70 font-mono mb-2">{{ selectedWord.hiragana }}</div>
+            <div class="badge badge-lg gap-2" :class="selectedWord.type === 'noun' ? 'badge-info' : 'badge-error'">
+              {{ selectedWord.type === 'noun' ? '📦 Substantivo' : '⚡ Verbo' }}
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Informações Básicas -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="card bg-base-200">
+              <div class="card-body p-4">
+                <h4 class="font-semibold mb-2">🗣️ Romaji</h4>
+                <p class="font-mono text-lg">{{ selectedWord.romaji }}</p>
+              </div>
+            </div>
+            <div class="card bg-base-200">
+              <div class="card-body p-4">
+                <h4 class="font-semibold mb-2">🇧🇷 Português</h4>
+                <p class="text-lg">{{ selectedWord.meaning_pt }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Análise de Kanjis -->
+          <div v-if="wordKanjis.length > 0" class="space-y-4">
+            <h4 class="font-semibold text-lg flex items-center gap-2">
+              <span>📚</span>
+              <span>Kanjis na Palavra</span>
+            </h4>
+            
+            <div class="grid grid-cols-1 gap-4">
+              <div v-for="(kanjiDetail, idx) in wordKanjis" :key="idx" class="card bg-gradient-to-br from-primary/5 to-secondary/5">
+                <div class="card-body p-4">
+                  <div class="flex items-start gap-4">
+                    <!-- Kanji Grande -->
+                    <div class="text-6xl font-bold">{{ kanjiDetail.kanji }}</div>
+                    
+                    <!-- Informações -->
+                    <div class="flex-1 space-y-2">
+                      <div>
+                        <span class="font-semibold">Significados:</span>
+                        <span class="ml-2">{{ kanjiDetail.br_meanings.join(', ') }}</span>
+                      </div>
+                      <div>
+                        <span class="font-semibold">Significados no inglês:</span>
+                        <span class="ml-2">{{ kanjiDetail.meanings.join(', ') }}</span>
+                      </div>
+                      <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span class="font-semibold">Kun:</span>
+                          <span class="ml-2 font-mono">{{ formatKunReadings(kanjiDetail.kun_readings) }}</span>
+                        </div>
+                        <div>
+                          <span class="font-semibold">On:</span>
+                          <span class="ml-2 font-mono">{{ formatOnReadings(kanjiDetail.on_readings) }}</span>
+                        </div>
+                      </div>
+                      <div class="flex gap-2">
+                        <div class="badge badge-sm">{{ kanjiDetail.stroke_count }} traços</div>
+                        <div class="badge badge-sm">Grau {{ kanjiDetail.grade }}</div>
+                        <div class="badge badge-sm">JLPT N{{ kanjiDetail.jlpt || 5 }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão de Áudio -->
+          <div class="text-center">
+            <button 
+              @click="speakWord(selectedWord.hiragana)"
+              class="btn btn-primary gap-2"
+            >
+              🔊 Ouvir Pronúncia
+            </button>
+          </div>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>Fechar</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { VOCABULARY_N5 } from '@/data/vocabulary-n5'
+import { useKanjiApi } from '@/composables/useKanjiApi'
 
 const searchQuery = ref('')
 const filterType = ref<'all' | 'noun' | 'verb'>('all')
@@ -280,6 +379,50 @@ const speakWord = (text: string) => {
   utterance.lang = 'ja-JP'
   utterance.rate = 0.8
   window.speechSynthesis.speak(utterance)
+}
+
+// Composable da API para análise de kanjis no vocabulário
+const { 
+  fetchKanjiDetails,
+  formatKunReadings,
+  formatOnReadings
+} = useKanjiApi()
+
+const selectedWord = ref<typeof VOCABULARY_N5[0] | null>(null)
+const wordKanjis = ref<any[]>([])
+const wordDetailsModal = ref<HTMLDialogElement | null>(null)
+
+/**
+ * Extrai kanjis de uma palavra
+ * @param word - Palavra em japonês
+ * @returns Array de caracteres kanji
+ */
+const extractKanjis = (word: string): string[] => {
+  const kanjiRegex = /[\u4e00-\u9faf\u3400-\u4dbf]/g
+  return word.match(kanjiRegex) || []
+}
+
+/**
+ * Mostra detalhes da palavra incluindo análise de kanjis
+ * @param item - Item do vocabulário
+ */
+const showWordDetails = async (item: typeof VOCABULARY_N5[0]): Promise<void> => {
+  selectedWord.value = item
+  wordDetailsModal.value?.showModal()
+  
+  // Busca informações de cada kanji na palavra
+  const kanjis = extractKanjis(item.word)
+  wordKanjis.value = []
+  if (kanjis.length > 0) {
+    const palavrasKanji = []
+    for (const kanji of kanjis) {
+      const details = await fetchKanjiDetails(kanji)
+      if (details) {
+        palavrasKanji.push(details)
+      }
+    }
+    wordKanjis.value = palavrasKanji
+  }
 }
 
 // Initialize
